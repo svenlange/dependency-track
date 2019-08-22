@@ -44,6 +44,17 @@ function formatProjectsTable(res) {
     return res;
 }
 
+function rowStyleProjectsTable(row, index) {
+    if (!row.active) {
+        return {
+            css: {
+                background: "#dddeee"
+            }
+        }
+    }
+    return {};
+}
+
 function projectCreated(data) {
     $("#projectsTable").bootstrapTable("refresh", {silent: true});
 }
@@ -56,6 +67,7 @@ function clearInputFields() {
     $("#createProjectVersionInput").val("");
     $("#createProjectDescriptionInput").val("");
     $("#createProjectTagsInput").tagsinput("removeAll");
+    $("#createProjectActiveInput").prop("checked", "checked");
 }
 
 function updateStats(metric) {
@@ -93,13 +105,19 @@ $(document).ready(function () {
         const version = $("#createProjectVersionInput").val();
         const description = $("#createProjectDescriptionInput").val();
         const tags = $common.csvStringToObjectArray($("#createProjectTagsInput").val());
-        $rest.createProject(name, version, description, tags, projectCreated);
+        const active = $("#createProjectActiveInput").prop("checked");
+        $rest.createProject(name, version, description, tags, active, projectCreated);
         clearInputFields();
     });
 
     // When modal closes, clear out the input fields
     $("#modalCreateProject").on("hidden.bs.modal", function() {
         $("#createProjectNameInput").val("");
+    });
+
+    $("#showInactiveProjects").change(function() {
+        const url = $rest.contextPath() + URL_PROJECT + "?excludeInactive=" + !$(this).prop("checked");
+        $("#projectsTable").bootstrapTable("refresh", {silent: true, url: url});
     });
 
 });

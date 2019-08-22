@@ -113,10 +113,12 @@
             <div id="projectsToolbar">
                 <div class="form-inline" role="form">
                     <button id="createProjectButton" class="btn btn-default require-portfolio-management" data-toggle="modal" data-target="#modalCreateProject"><span class="fa fa-plus"></span> Create Project</button>
+                    &nbsp;&nbsp;&nbsp;<input type="checkbox" id="showInactiveProjects">&nbsp;&nbsp;Show inactive projects
                 </div>
             </div>
                 <table id="projectsTable" class="table table-hover detail-table" data-toggle="table"
-                       data-url="<c:url value="/api/v1/project"/>" data-response-handler="formatProjectsTable"
+                       data-url="<c:url value="/api/v1/project"/>?excludeInactive=true" data-response-handler="formatProjectsTable"
+                       data-row-style="rowStyleProjectsTable" data-buttons-class="primary"
                        data-show-refresh="true" data-show-columns="true" data-search="true" data-detail-view="true"
                        data-query-params-type="pageSize" data-side-pagination="server" data-pagination="true"
                        data-silent-sort="false" data-page-size="10" data-page-list="[10, 25, 50, 100]"
@@ -125,7 +127,7 @@
                 <tr>
                     <th data-align="left" data-field="projecthref" data-sort-name="name" data-sortable="true">Project Name</th>
                     <th data-align="left" data-field="version" data-sortable="true">Version</th>
-                    <th data-align="left" data-field="lastScanImportLabel" data-sort-name="lastScanImport" data-sortable="true">Last Scan Import</th>
+                    <th data-align="left" data-field="lastScanImportLabel" data-sort-name="lastScanImport" data-sortable="true" data-visible="false">Last Scan Import</th>
                     <th data-align="left" data-field="lastBomImportLabel" data-sort-name="lastBomImport" data-sortable="true">Last BOM Import</th>
                     <th data-align="left" data-field="vulnerabilities">Vulnerabilities</th>
                 </tr>
@@ -158,6 +160,10 @@
                     <div class="form-group">
                         <label for="createProjectTagsInput">Tags</label>
                         <input type="text" name="tags" placeholder="Comma separated" class="form-control" data-role="tagsinput" id="createProjectTagsInput">
+                    </div>
+                    <div class="checkbox checkbox-primary">
+                        <input type="checkbox" name="active" class="styled require-portfolio-management" id="createProjectActiveInput" checked="checked">
+                        <label for="createProjectActiveInput">Active</label>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -24,27 +24,19 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DependencyCheckEventTest {
+public class CpeAnalysisEventTest {
 
     @Test
     public void testDefaultConstructor() {
-        DependencyCheckEvent event = new DependencyCheckEvent();
-        Assert.assertEquals(DependencyCheckEvent.Action.ANALYZE, event.getAction());
-        Assert.assertEquals(0, event.getComponents().size());
-    }
-
-    @Test
-    public void testActionConstructor() {
-        DependencyCheckEvent event = new DependencyCheckEvent(DependencyCheckEvent.Action.UPDATE_ONLY);
-        Assert.assertEquals(DependencyCheckEvent.Action.UPDATE_ONLY, event.getAction());
+        CpeAnalysisEvent event = new CpeAnalysisEvent();
+        Assert.assertNull(event.getProject());
         Assert.assertEquals(0, event.getComponents().size());
     }
 
     @Test
     public void testComponentConstructor() {
         Component component = new Component();
-        DependencyCheckEvent event = new DependencyCheckEvent(component);
-        Assert.assertEquals(DependencyCheckEvent.Action.ANALYZE, event.getAction());
+        CpeAnalysisEvent event = new CpeAnalysisEvent(component);
         Assert.assertEquals(1, event.getComponents().size());
     }
 
@@ -53,8 +45,7 @@ public class DependencyCheckEventTest {
         Component component = new Component();
         List<Component> components = new ArrayList<>();
         components.add(component);
-        DependencyCheckEvent event = new DependencyCheckEvent(components);
-        Assert.assertEquals(DependencyCheckEvent.Action.ANALYZE, event.getAction());
+        CpeAnalysisEvent event = new CpeAnalysisEvent(components);
         Assert.assertEquals(1, event.getComponents().size());
     }
 }

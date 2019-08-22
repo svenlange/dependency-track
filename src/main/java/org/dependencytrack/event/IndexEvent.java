@@ -20,9 +20,11 @@ package org.dependencytrack.event;
 
 import alpine.event.framework.Event;
 import org.dependencytrack.model.Component;
+import org.dependencytrack.model.Cpe;
 import org.dependencytrack.model.License;
 import org.dependencytrack.model.Project;
 import org.dependencytrack.model.Vulnerability;
+import org.dependencytrack.model.VulnerableSoftware;
 
 /**
  * Defines various Lucene index events.
@@ -63,6 +65,16 @@ public class IndexEvent implements Event {
     public IndexEvent(final Action action, final License license) {
         this.action = action;
         this.indexableObject = license;
+    }
+
+    public IndexEvent(final Action action, final Cpe cpe) {
+        this.action = action;
+        this.indexableObject = cpe;
+    }
+
+    public IndexEvent(final Action action, final VulnerableSoftware vs) {
+        this.action = action;
+        this.indexableObject = vs;
     }
 
     public IndexEvent(final Action action, final Class clazz) {

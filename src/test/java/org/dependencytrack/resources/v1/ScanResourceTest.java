@@ -22,6 +22,7 @@ import alpine.filters.AuthenticationFilter;
 import org.apache.commons.io.FileUtils;
 import org.dependencytrack.ResourceTest;
 import org.dependencytrack.auth.Permissions;
+import org.dependencytrack.model.ConfigPropertyConstants;
 import org.dependencytrack.model.Project;
 import org.dependencytrack.resources.v1.vo.ScanSubmitRequest;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
@@ -30,6 +31,7 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.glassfish.jersey.test.DeploymentContext;
 import org.glassfish.jersey.test.ServletDeploymentContext;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
@@ -49,10 +51,22 @@ public class ScanResourceTest extends ResourceTest {
                 .build();
     }
 
+    @Before
+    public void before() throws Exception {
+        super.before();
+        qm.createConfigProperty(
+                ConfigPropertyConstants.ACCEPT_ARTIFACT_DEPENDENCYCHECK.getGroupName(),
+                ConfigPropertyConstants.ACCEPT_ARTIFACT_DEPENDENCYCHECK.getPropertyName(),
+                "true",
+                ConfigPropertyConstants.ACCEPT_ARTIFACT_DEPENDENCYCHECK.getPropertyType(),
+                null
+        );
+    }
+
     @Test
     public void uploadScanTest() throws Exception {
         initializeWithPermissions(Permissions.SCAN_UPLOAD);
-        Project project = qm.createProject("Acme Example", null, "1.0", null, null, null, false);
+        Project project = qm.createProject("Acme Example", null, "1.0", null, null, null, true, false);
         File file = new File(Thread.currentThread().getContextClassLoader().getResource("dependency-check-report.xml").getFile());
         String scanString = Base64.getEncoder().encodeToString(FileUtils.readFileToByteArray(file));
         ScanSubmitRequest request = new ScanSubmitRequest(project.getUuid().toString(), null, null, false, scanString);

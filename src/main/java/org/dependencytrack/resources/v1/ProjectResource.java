@@ -29,7 +29,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.ResponseHeader;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.dependencytrack.auth.Permissions;
 import org.dependencytrack.event.CloneProjectEvent;
 import org.dependencytrack.model.Project;
@@ -72,9 +72,11 @@ public class ProjectResource extends AlpineResource {
     })
     @PermissionRequired(Permissions.Constants.VIEW_PORTFOLIO)
     public Response getProjects(@ApiParam(value = "The optional name of the project to query on", required = false)
-                                @QueryParam("name") String name) {
+                                @QueryParam("name") String name,
+                                @ApiParam(value = "Optionally excludes inactive projects from being returned", required = false)
+                                @QueryParam("excludeInactive") boolean excludeInactive) {
         try (QueryManager qm = new QueryManager(getAlpineRequest())) {
-            final PaginatedResult result = (name != null) ? qm.getProjects(name) : qm.getProjects(true);
+            final PaginatedResult result = (name != null) ? qm.getProjects(name, excludeInactive) : qm.getProjects(true, excludeInactive);
             return Response.ok(result.getObjects()).header(TOTAL_COUNT_HEADER, result.getTotal()).build();
         }
     }
@@ -165,6 +167,7 @@ public class ProjectResource extends AlpineResource {
                         jsonProject.getTags(),
                         parent,
                         StringUtils.trimToNull(jsonProject.getPurl()),
+                        jsonProject.isActive(),
                         true);
                 return Response.status(Response.Status.CREATED).entity(project).build();
             } else {
@@ -213,6 +216,7 @@ public class ProjectResource extends AlpineResource {
                             version,
                             jsonProject.getTags(),
                             StringUtils.trimToNull(jsonProject.getPurl()),
+                            jsonProject.isActive(),
                             true);
                     return Response.ok(project).build();
                 } else {

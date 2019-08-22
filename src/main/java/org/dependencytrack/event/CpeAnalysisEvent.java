@@ -22,40 +22,20 @@ import org.dependencytrack.model.Component;
 import java.util.List;
 
 /**
- * Defines multiple event types to execute Dependency-Check in various ways.
+ * Defines an event used to start an internal CPE analysis.
  *
  * @author Steve Springett
- * @since 3.0.0
+ * @since 3.6.0
  */
-public class DependencyCheckEvent extends VulnerabilityAnalysisEvent {
+public class CpeAnalysisEvent extends VulnerabilityAnalysisEvent {
 
-    public enum Action {
-        ANALYZE,
-        UPDATE_ONLY
-    }
+    public CpeAnalysisEvent() { }
 
-    private final Action action;
-
-    public DependencyCheckEvent() {
-        this.action = Action.ANALYZE;
-    }
-
-    public DependencyCheckEvent(final Action action) {
-        this.action = action;
-    }
-
-    public DependencyCheckEvent(final Component component) {
+    public CpeAnalysisEvent(final Component component) {
         super(component);
-        this.action = Action.ANALYZE;
     }
 
-    public DependencyCheckEvent(final List<Component> components) {
+    public CpeAnalysisEvent(final List<Component> components) {
         super(components);
-        this.action = Action.ANALYZE;
     }
-
-    public Action getAction() {
-        return action;
-    }
-
 }

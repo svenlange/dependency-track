@@ -32,11 +32,11 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.dependencytrack.common.HttpClientPool;
-import org.dependencytrack.event.DependencyCheckEvent;
 import org.dependencytrack.event.NistMirrorEvent;
 import org.dependencytrack.notification.NotificationConstants;
 import org.dependencytrack.notification.NotificationGroup;
 import org.dependencytrack.notification.NotificationScope;
+import org.dependencytrack.parser.nvd.CpeDictionaryParser;
 import org.dependencytrack.parser.nvd.NvdParser;
 import java.io.Closeable;
 import java.io.File;
@@ -57,11 +57,14 @@ import java.util.zip.GZIPInputStream;
  */
 public class NistMirrorTask implements LoggableSubscriber {
 
+    private enum ResourceType {
+        CVE,
+        CPE,
+        CWE
+    }
+
     public static final String NVD_MIRROR_DIR = Config.getInstance().getDataDirectorty().getAbsolutePath() + File.separator + "nist";
-    private static final String CVE_XML_12_MODIFIED_URL = "https://nvd.nist.gov/feeds/xml/cve/1.2/nvdcve-modified.xml.gz";
-    private static final String CVE_XML_20_MODIFIED_URL = "https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-modified.xml.gz";
-    private static final String CVE_XML_12_BASE_URL = "https://nvd.nist.gov/feeds/xml/cve/1.2/nvdcve-%d.xml.gz";
-    private static final String CVE_XML_20_BASE_URL = "https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-%d.xml.gz";
+    private static final String CPE_DICTIONARY_23_XML = "https://nvd.nist.gov/feeds/xml/cpe/dictionary/official-cpe-dictionary_v2.3.xml.gz";
     private static final String CVE_JSON_10_MODIFIED_URL = "https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-modified.json.gz";
     private static final String CVE_JSON_10_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-%d.json.gz";
     private static final String CVE_JSON_10_MODIFIED_META = "https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-modified.meta";
@@ -84,9 +87,6 @@ public class NistMirrorTask implements LoggableSubscriber {
             setOutputDir(mirrorPath.getAbsolutePath());
             getAllFiles();
             LOGGER.info("NIST mirroring complete");
-
-            // Publish a Dependency-Check UPDATE ONLY event to update its data directory.
-            Event.dispatch(new DependencyCheckEvent(DependencyCheckEvent.Action.UPDATE_ONLY));
         }
     }
 
@@ -96,20 +96,16 @@ public class NistMirrorTask implements LoggableSubscriber {
     private void getAllFiles() {
         final Date currentDate = new Date();
         LOGGER.info("Downloading files at " + currentDate);
+        // Download the CPE dictionary first
+        doDownload(CPE_DICTIONARY_23_XML, ResourceType.CPE);
         for (int i = START_YEAR; i <= END_YEAR; i++) {
-            final String xml12BaseUrl = CVE_XML_12_BASE_URL.replace("%d", String.valueOf(i));
-            final String xml20BaseUrl = CVE_XML_20_BASE_URL.replace("%d", String.valueOf(i));
             final String json10BaseUrl = CVE_JSON_10_BASE_URL.replace("%d", String.valueOf(i));
             final String cveBaseMetaUrl = CVE_JSON_10_BASE_META.replace("%d", String.valueOf(i));
-            doDownload(xml12BaseUrl);
-            doDownload(xml20BaseUrl);
-            doDownload(json10BaseUrl);
-            doDownload(cveBaseMetaUrl);
+            doDownload(json10BaseUrl, ResourceType.CVE);
+            doDownload(cveBaseMetaUrl, ResourceType.CVE);
         }
-        doDownload(CVE_XML_12_MODIFIED_URL);
-        doDownload(CVE_XML_20_MODIFIED_URL);
-        doDownload(CVE_JSON_10_MODIFIED_URL);
-        doDownload(CVE_JSON_10_MODIFIED_META);
+        doDownload(CVE_JSON_10_MODIFIED_URL, ResourceType.CVE);
+        doDownload(CVE_JSON_10_MODIFIED_META, ResourceType.CVE);
 
         if (mirroredWithoutErrors) {
             Notification.dispatch(new Notification()
@@ -154,18 +150,18 @@ public class NistMirrorTask implements LoggableSubscriber {
 
     /**
      * Performs a download of specified URL.
-     * @param cveUrl the URL contents to download
+     * @param urlString the URL contents to download
      */
-    private void doDownload(final String cveUrl) {
+    private void doDownload(final String urlString, final ResourceType resourceType) {
         File file;
         try {
-            final URL url = new URL(cveUrl);
+            final URL url = new URL(urlString);
             String filename = url.getFile();
             filename = filename.substring(filename.lastIndexOf('/') + 1);
             file = new File(outputDir, filename).getAbsoluteFile();
 
             if (file.exists()) {
-                final long fileSize = checkHead(cveUrl);
+                final long fileSize = checkHead(urlString);
                 if (file.length() == fileSize) {
                     LOGGER.info("Using cached version of " + filename);
                     return;
@@ -173,7 +169,7 @@ public class NistMirrorTask implements LoggableSubscriber {
             }
 
             LOGGER.info("Initiating download of " + url.toExternalForm());
-            final HttpUriRequest request = new HttpGet(cveUrl);
+            final HttpUriRequest request = new HttpGet(urlString);
             try (final CloseableHttpResponse response = HttpClientPool.getClient().execute(request)) {
                 final StatusLine status = response.getStatusLine();
                 if (status.getStatusCode() == 200) {
@@ -182,7 +178,7 @@ public class NistMirrorTask implements LoggableSubscriber {
                         file = new File(outputDir, filename);
                         FileUtils.copyInputStreamToFile(in, file);
                         if (file.getName().endsWith(".gz")) {
-                            uncompress(file);
+                            uncompress(file, resourceType);
                         }
                     }
                 } else if (response.getStatusLine().getStatusCode() == 403) {
@@ -227,7 +223,7 @@ public class NistMirrorTask implements LoggableSubscriber {
      * Extracts a GZip file.
      * @param file the file to extract
      */
-    private void uncompress(final File file) {
+    private void uncompress(final File file, final ResourceType resourceType) {
         final byte[] buffer = new byte[1024];
         GZIPInputStream gzis = null;
         OutputStream out = null;
@@ -240,8 +236,13 @@ public class NistMirrorTask implements LoggableSubscriber {
             while ((len = gzis.read(buffer)) > 0) {
                 out.write(buffer, 0, len);
             }
-            final NvdParser parser = new NvdParser();
-            parser.parse(uncompressedFile);
+            if (ResourceType.CVE == resourceType) {
+                final NvdParser parser = new NvdParser();
+                parser.parse(uncompressedFile);
+            } else if (ResourceType.CPE == resourceType) {
+                final CpeDictionaryParser parser = new CpeDictionaryParser();
+                parser.parse(uncompressedFile);
+            }
         } catch (IOException ex) {
             mirroredWithoutErrors = false;
             LOGGER.error("An error occurred uncompressing NVD payload", ex);

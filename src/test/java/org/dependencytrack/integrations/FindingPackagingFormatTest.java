@@ -29,9 +29,10 @@ import java.util.Collections;
 public class FindingPackagingFormatTest extends PersistenceCapableTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void wrapperTest() {
         Project project = qm.createProject(
-                "Test", "Sample project", "1.0", null, null, null, false);
+                "Test", "Sample project", "1.0", null, null, null, true, false);
         FindingPackagingFormat fpf = new FindingPackagingFormat(
                 project.getUuid(),
                 Collections.EMPTY_LIST

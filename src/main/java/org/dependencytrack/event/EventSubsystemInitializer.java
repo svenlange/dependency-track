@@ -37,7 +37,7 @@ import org.dependencytrack.tasks.TaskScheduler;
 import org.dependencytrack.tasks.VulnDbSyncTask;
 import org.dependencytrack.tasks.VulnerabilityAnalysisTask;
 import org.dependencytrack.tasks.repositories.RepositoryMetaAnalyzerTask;
-import org.dependencytrack.tasks.scanners.DependencyCheckTask;
+import org.dependencytrack.tasks.scanners.CpeAnalysisTask;
 import org.dependencytrack.tasks.scanners.NpmAuditAnalysisTask;
 import org.dependencytrack.tasks.scanners.OssIndexAnalysisTask;
 import javax.servlet.ServletContextEvent;
@@ -72,6 +72,7 @@ public class EventSubsystemInitializer implements ServletContextListener {
         EVENT_SERVICE.subscribe(BomUploadEvent.class, BomUploadProcessingTask.class);
         EVENT_SERVICE.subscribe(ScanUploadEvent.class, ScanUploadProcessingTask.class);
         EVENT_SERVICE.subscribe(LdapSyncEvent.class, LdapSyncTask.class);
+        EVENT_SERVICE.subscribe(CpeAnalysisEvent.class, CpeAnalysisTask.class);
         EVENT_SERVICE.subscribe(NpmAuditAnalysisEvent.class, NpmAuditAnalysisTask.class);
         EVENT_SERVICE.subscribe(OssIndexAnalysisEvent.class, OssIndexAnalysisTask.class);
         EVENT_SERVICE.subscribe(NpmAdvisoryMirrorEvent.class, NpmAdvisoryMirrorTask.class);
@@ -84,7 +85,6 @@ public class EventSubsystemInitializer implements ServletContextListener {
         EVENT_SERVICE.subscribe(KennaSecurityUploadEventAbstract.class, KennaSecurityUploadTask.class);
 
         EVENT_SERVICE_ST.subscribe(IndexEvent.class, IndexTask.class);
-        EVENT_SERVICE_ST.subscribe(DependencyCheckEvent.class, DependencyCheckTask.class);
         EVENT_SERVICE_ST.subscribe(NistMirrorEvent.class, NistMirrorTask.class);
 
         TaskScheduler.getInstance();
@@ -101,6 +101,7 @@ public class EventSubsystemInitializer implements ServletContextListener {
         EVENT_SERVICE.unsubscribe(BomUploadProcessingTask.class);
         EVENT_SERVICE.unsubscribe(ScanUploadProcessingTask.class);
         EVENT_SERVICE.unsubscribe(LdapSyncTask.class);
+        EVENT_SERVICE.unsubscribe(CpeAnalysisTask.class);
         EVENT_SERVICE.unsubscribe(NpmAuditAnalysisTask.class);
         EVENT_SERVICE.unsubscribe(OssIndexAnalysisTask.class);
         EVENT_SERVICE.unsubscribe(NpmAdvisoryMirrorTask.class);
@@ -114,7 +115,6 @@ public class EventSubsystemInitializer implements ServletContextListener {
         EVENT_SERVICE.shutdown();
 
         EVENT_SERVICE_ST.unsubscribe(IndexTask.class);
-        EVENT_SERVICE_ST.unsubscribe(DependencyCheckTask.class);
         EVENT_SERVICE_ST.unsubscribe(NistMirrorTask.class);
         EVENT_SERVICE_ST.shutdown();
     }

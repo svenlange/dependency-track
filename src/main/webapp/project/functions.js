@@ -301,7 +301,7 @@ function clearInputFields() {
 function populateProjectData(data) {
 
     // Retrieve the list of project versions and determine which one should be selected
-    $rest.getProjectVersions(data.name, function (versionData) {
+    $rest.getProjectVersions(data.name, true, function (versionData) {
         let select = $("#projectVersionSelect");
         $.each(versionData, function() {
             let escapedProjectVersion = filterXSS(this.version);
@@ -321,6 +321,10 @@ function populateProjectData(data) {
     $("#projectNameInput").val(data.name);
     $("#projectVersionInput").val(data.version);
     $("#projectDescriptionInput").val(data.description);
+    if (data.active) {
+        $("#projectActiveInput").prop("checked", "checked");
+
+    }
 
     $("#projectTitle").html(escapedProjectName);
     if (data.version) {
@@ -467,7 +471,7 @@ $(document).ready(function () {
         let selections = dependenciesTable.bootstrapTable("getSelections");
         let componentUuids = [];
         for (let i=0; i<selections.length; i++) {
-            componentUuids[i] = selections[i].uuid;
+            componentUuids[i] = selections[i].component.uuid;
         }
         $rest.removeDependency(uuid, componentUuids, function() {
             $("#dependenciesTable").bootstrapTable("refresh", {silent: true});
@@ -480,14 +484,15 @@ $(document).ready(function () {
         let version = $("#projectVersionInput").val();
         let description = $("#projectDescriptionInput").val();
         let tags = $common.csvStringToObjectArray($("#projectTagsInput").val());
-        $rest.updateProject(uuid, name, version, description, tags, function() {
+        let active = $("#projectActiveInput").is(':checked');
+        $rest.updateProject(uuid, name, version, description, tags, active, function() {
             $rest.getProject(uuid, populateProjectData);
         });
     });
 
     $("#deleteProjectButton").on("click", function () {
         $rest.deleteProject(uuid, function() {
-            window.location.href = "../projects";
+            window.location.href = "../projects/";
         });
     });
 

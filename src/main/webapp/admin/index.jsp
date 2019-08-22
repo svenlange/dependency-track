@@ -34,6 +34,7 @@
                     <div id="collapseConfiguration" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingConfiguration">
                         <div class="list-group">
                             <a data-toggle="tab" class="list-group-item" href="#generalConfigTab">General</a>
+                            <a data-toggle="tab" class="list-group-item" href="#artifactsTab">BOM Formats</a>
                             <a data-toggle="tab" class="list-group-item" href="#emailTab">Email</a>
                         </div>
                     </div>
@@ -42,13 +43,13 @@
                     <div class="panel-heading admin-accordion" role="tab" id="headingScanners">
                         <div class="panel-title">
                             <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseScanners" aria-expanded="false" aria-controls="collapseScanners">
-                                Scanners
+                                Analyzers
                             </a>
                         </div>
                     </div>
                     <div id="collapseScanners" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingScanners">
                         <div class="list-group">
-                            <a data-toggle="tab" class="list-group-item" href="#scannerDependencyCheckTab">Dependency-Check</a>
+                            <a data-toggle="tab" class="list-group-item" href="#scannerCpeTab">Internal CPE</a>
                             <a data-toggle="tab" class="list-group-item" href="#scannerNpmAuditTab">NPM Audit</a>
                             <a data-toggle="tab" class="list-group-item" href="#scannerOssIndexTab">Sonatype OSS Index</a>
                         </div>
@@ -141,7 +142,24 @@
                                 <label class="required" for="generalConfigBaseUrlInput">Dependency-Track Base URL</label>
                                 <input type="text" name="Base URL" class="form-control required" id="generalConfigBaseUrlInput" data-group-name="general" data-property-name="base.url">
                             </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" id="generalConfigBadgeEnabledInput" data-group-name="general" data-property-name="badge.enabled"> Enable SVG badge support (unauthenticated)</label>
+                            </div>
                             <button type="button" class="btn btn-primary btn-config-property" id="updateGeneralConfigButton" data-group-name="general">Update</button>
+                        </div>
+                        <div class="tab-pane admin-form-content" id="artifactsTab" data-admin-title="BOM Formats">
+                            <h3 class="admin-section-title">BOM Format Configuration</h3>
+                            <p>Enables support for processing BOMs of various formats. Only BOM formats which are enabled will be processed.</p>
+                            <div class="checkbox">
+                                <label><input type="checkbox" id="artifactCycloneDxEnableInput" data-group-name="artifact" data-property-name="cyclonedx.enabled"> Enable CycloneDX</label>
+                            </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" id="artifactSpdxEnableInput" data-group-name="artifact" data-property-name="spdx.enabled"> Enable SPDX</label>
+                            </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" id="artifactDependencyCheckEnableInput" data-group-name="artifact" data-property-name="dependencycheck.enabled"> Enable Dependency-Check XML reports (<strong>deprecated</strong>)</label>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-config-property" id="updateArtifactConfigButton" data-group-name="artifact">Update</button>
                         </div>
                         <div class="tab-pane admin-form-content" id="emailTab" data-admin-title="Email">
                             <h3 class="admin-section-title">Email Service Configuration</h3>
@@ -177,33 +195,23 @@
                             <button type="button" class="btn btn-default btn-config-property" data-group-name="email" data-toggle="modal" data-target="#modalEmailTestConfiguration">Test Configuration</button>
                             <button type="button" class="btn btn-primary btn-config-property" id="updateEmailConfigButton" data-group-name="email">Update</button>
                         </div>
-                        <div class="tab-pane" id="scannerDependencyCheckTab" data-admin-title="Dependency-Check">
-                            <h3 class="admin-section-title">Dependency-Check Configuration</h3>
+                        <div class="tab-pane" id="scannerCpeTab" data-admin-title="Internal CPE">
+                            <h3 class="admin-section-title">CPE Analyzer Configuration</h3>
                             <div class="checkbox">
-                                <input id="scannerDependencyCheckToggleButton" class="scannerToggleButton" type="checkbox" data-toggle="toggle" data-size="small" data-width="130" data-group-name="scanner" data-property-name="dependencycheck.enabled" data-on="<i class='fa fa-power-off'></i> Enabled" data-off="<i class='fa fa-power-off'></i> Disabled">
+                                <input id="scannerCpeToggleButton" class="scannerToggleButton" type="checkbox" data-toggle="toggle" data-size="small" data-width="130" data-group-name="scanner" data-property-name="cpe.enabled" data-on="<i class='fa fa-power-off'></i> Enabled" data-off="<i class='fa fa-power-off'></i> Disabled">
+                            </div>
+                            <p><br/></p>
+                            <div class="checkbox">
+                                <label><input type="checkbox" id="scannerCpeFuzzyEnableInput" data-group-name="scanner" data-property-name="cpe.fuzzy.enabled"> Enable CPE fuzzy matching</label>
+                            </div>
+                            <div class="checkbox">
+                                <label><input type="checkbox" id="scannerCpeFuzzyExcludePurlInput" data-group-name="scanner" data-property-name="cpe.fuzzy.exclude.purl"> Exclude fuzzy matching on components with Package URL</label>
                             </div>
                             <div class="panel panel-default">
                                 <div class="panel-body">
                                     <p>
-                                        OWASP Dependency-Check is a utility designed to discover vulnerabilities in
-                                        third-party components. Dependency-Check uses evidence-based analysis and
-                                        performs fuzzy matching against the NVD to present results based on confidence.
-                                        Dependency-Track has native integration with Dependency-Check.
+                                        The Common Platform Enumeration (CPE) analyzer is an internal scanner implementation that analyzes component CPEs against the internal vulnerability database. All vulnerabilities that have a CPE, regardless of source, will be utilized by the CPE analyzer.
                                     </p>
-                                    <p>
-                                        Evidence-based analysis will lead to false positives, however, the technique can
-                                        also be utilized to discover potential issues with an applications environment.
-                                    </p>
-                                    <p>
-                                        Note: Due to the file-based approach that Dependency-Check natively uses,
-                                        not all Dependency-Check analyzers are enabled. Most notably, NPM analysis
-                                        is disabled. Organizations utilizing Node.js are encouraged to use the native
-                                        NPM Audit analyzer in Dependency-Track.
-                                    </p>
-                                </div>
-                                <div class="panel-footer">
-                                    References:<br/>
-                                    <a href="https://www.owasp.org/index.php/OWASP_Dependency_Check">OWASP Dependency-Check Project</a>
                                 </div>
                             </div>
                         </div>

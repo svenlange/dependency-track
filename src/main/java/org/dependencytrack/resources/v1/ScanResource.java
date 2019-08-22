@@ -27,9 +27,10 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Authorization;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.dependencytrack.auth.Permissions;
 import org.dependencytrack.event.ScanUploadEvent;
+import org.dependencytrack.model.ConfigPropertyConstants;
 import org.dependencytrack.model.Project;
 import org.dependencytrack.persistence.QueryManager;
 import org.dependencytrack.resources.v1.vo.ScanSubmitRequest;
@@ -74,6 +75,9 @@ public class ScanResource extends AlpineResource {
     })
     @PermissionRequired(Permissions.Constants.SCAN_UPLOAD)
     public Response uploadScan(ScanSubmitRequest request) {
+        if (!isEnabled()) {
+            return Response.status(Response.Status.NOT_ACCEPTABLE).entity("Accepting Dependency-Check reports is not enabled. Aborting.").build();
+        }
         final Validator validator = getValidator();
         if (request.getProject() != null) { // behavior in v3.0.0
             failOnValidationError(
@@ -94,7 +98,7 @@ public class ScanResource extends AlpineResource {
                 Project project = qm.getProject(request.getProjectName(), request.getProjectVersion());
                 if (project == null && request.isAutoCreate()) {
                     if (hasPermission(Permissions.Constants.PORTFOLIO_MANAGEMENT) || hasPermission(Permissions.Constants.PROJECT_CREATION_UPLOAD)) {
-                        project = qm.createProject(StringUtils.trimToNull(request.getProjectName()), null, StringUtils.trimToNull(request.getProjectVersion()), null, null, null, true);
+                        project = qm.createProject(StringUtils.trimToNull(request.getProjectName()), null, StringUtils.trimToNull(request.getProjectVersion()), null, null, null, true, true);
                     } else {
                         return Response.status(Response.Status.UNAUTHORIZED).entity("The principal does not have permission to create project.").build();
                     }
@@ -121,7 +125,9 @@ public class ScanResource extends AlpineResource {
                                @FormDataParam("projectName") String projectName,
                                @FormDataParam("projectVersion") String projectVersion,
                                final FormDataMultiPart multiPart) {
-
+        if (!isEnabled()) {
+            return Response.status(Response.Status.NOT_ACCEPTABLE).entity("Accepting Dependency-Check reports is not enabled. Aborting.").build();
+        }
         final List<FormDataBodyPart> artifactParts = multiPart.getFields("scan");
         if (projectUuid != null) { // behavior in v3.0.0
             try (QueryManager qm = new QueryManager()) {
@@ -135,7 +141,7 @@ public class ScanResource extends AlpineResource {
                 Project project = qm.getProject(trimmedProjectName, trimmedProjectVersion);
                 if (project == null && autoCreate) {
                     if (hasPermission(Permissions.Constants.PORTFOLIO_MANAGEMENT) || hasPermission(Permissions.Constants.PROJECT_CREATION_UPLOAD)) {
-                        project = qm.createProject(trimmedProjectName, null, trimmedProjectVersion, null, null, null, true);
+                        project = qm.createProject(trimmedProjectName, null, trimmedProjectVersion, null, null, null, true, true);
                     } else {
                         return Response.status(Response.Status.UNAUTHORIZED).entity("The principal does not have permission to create project.").build();
                     }
@@ -179,6 +185,12 @@ public class ScanResource extends AlpineResource {
             }
         }
         return Response.ok().build();
+    }
+
+    private boolean isEnabled() {
+        try (QueryManager qm = new QueryManager()) {
+            return qm.isEnabled(ConfigPropertyConstants.ACCEPT_ARTIFACT_DEPENDENCYCHECK);
+        }
     }
 
 }

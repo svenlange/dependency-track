@@ -19,41 +19,19 @@
 package org.dependencytrack.persistence;
 
 import alpine.event.framework.Event;
+import alpine.model.ConfigProperty;
 import alpine.notification.NotificationLevel;
 import alpine.persistence.AlpineQueryManager;
 import alpine.persistence.PaginatedResult;
 import alpine.resources.AlpineRequest;
+import alpine.util.BooleanUtil;
 import com.github.packageurl.MalformedPackageURLException;
 import com.github.packageurl.PackageURL;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.datanucleus.api.jdo.JDOQuery;
 import org.dependencytrack.event.IndexEvent;
-import org.dependencytrack.model.Analysis;
-import org.dependencytrack.model.AnalysisComment;
-import org.dependencytrack.model.AnalysisState;
-import org.dependencytrack.model.Bom;
-import org.dependencytrack.model.Component;
-import org.dependencytrack.model.ComponentMetrics;
-import org.dependencytrack.model.Cwe;
-import org.dependencytrack.model.Dependency;
-import org.dependencytrack.model.DependencyMetrics;
-import org.dependencytrack.model.Evidence;
-import org.dependencytrack.model.Finding;
-import org.dependencytrack.model.License;
-import org.dependencytrack.model.NotificationPublisher;
-import org.dependencytrack.model.NotificationRule;
-import org.dependencytrack.model.PortfolioMetrics;
-import org.dependencytrack.model.Project;
-import org.dependencytrack.model.ProjectMetrics;
-import org.dependencytrack.model.ProjectProperty;
-import org.dependencytrack.model.Repository;
-import org.dependencytrack.model.RepositoryMetaComponent;
-import org.dependencytrack.model.RepositoryType;
-import org.dependencytrack.model.Scan;
-import org.dependencytrack.model.Tag;
-import org.dependencytrack.model.Vulnerability;
-import org.dependencytrack.model.VulnerabilityMetrics;
+import org.dependencytrack.model.*;
 import org.dependencytrack.notification.NotificationScope;
 import org.dependencytrack.util.NotificationUtil;
 import javax.jdo.FetchPlan;
@@ -107,7 +85,7 @@ public class QueryManager extends AlpineQueryManager {
      * @return a List of Projects
      */
     @SuppressWarnings("unchecked")
-    public PaginatedResult getProjects(final boolean includeMetrics) {
+    public PaginatedResult getProjects(final boolean includeMetrics, final boolean excludeInactive) {
         final PaginatedResult result;
         final Query query = pm.newQuery(Project.class);
         if (orderBy == null) {
@@ -117,14 +95,27 @@ public class QueryManager extends AlpineQueryManager {
             final String filterString = ".*" + filter.toLowerCase() + ".*";
             final Tag tag = getTagByName(filter.trim());
             if (tag != null) {
-                query.setFilter("name.toLowerCase().matches(:name) || tags.contains(:tag)");
+                if (excludeInactive) {
+                    query.setFilter("(name.toLowerCase().matches(:name) || tags.contains(:tag)) && active == true");
+                } else {
+                    query.setFilter("name.toLowerCase().matches(:name) || tags.contains(:tag)");
+                }
                 result = execute(query, filterString, tag);
             } else {
-                query.setFilter("name.toLowerCase().matches(:name)");
+                if (excludeInactive) {
+                    query.setFilter("name.toLowerCase().matches(:name) && active == true");
+                } else {
+                    query.setFilter("name.toLowerCase().matches(:name)");
+                }
                 result = execute(query, filterString);
             }
         } else {
-            result = execute(query);
+            if (excludeInactive) {
+                query.setFilter("active == true");
+                result = execute(query);
+            } else {
+                result = execute(query);
+            }
         }
         if (includeMetrics) {
             // Populate each Project object in the paginated result with transitive related
@@ -134,6 +125,15 @@ public class QueryManager extends AlpineQueryManager {
             }
         }
         return result;
+    }
+
+    /**
+     * Returns a list of all projects.
+     * @return a List of Projects
+     */
+    @SuppressWarnings("unchecked")
+    public PaginatedResult getProjects(final boolean includeMetrics) {
+        return getProjects(includeMetrics, false);
     }
 
     /**
@@ -163,10 +163,15 @@ public class QueryManager extends AlpineQueryManager {
      * @return a List of Project objects
      */
     @SuppressWarnings("unchecked")
-    public PaginatedResult getProjects(final String name) {
-        final Query query = pm.newQuery(Project.class, "name == :name");
+    public PaginatedResult getProjects(final String name, final boolean excludeInactive) {
+        final Query query = pm.newQuery(Project.class);
         if (orderBy == null) {
             query.setOrdering("version desc");
+        }
+        if (excludeInactive) {
+            query.setFilter("name == :name && active == true");
+        } else {
+            query.setFilter("name == :name)");
         }
         return execute(query, name);
     }
@@ -296,10 +301,11 @@ public class QueryManager extends AlpineQueryManager {
      * @param tags a List of Tags - these will be resolved if necessary
      * @param parent an optional parent Project
      * @param purl an optional Package URL
+     * @param active specified if the project is active
      * @param commitIndex specifies if the search index should be committed (an expensive operation)
      * @return the created Project
      */
-    public Project createProject(String name, String description, String version, List<Tag> tags, Project parent, String purl, boolean commitIndex) {
+    public Project createProject(String name, String description, String version, List<Tag> tags, Project parent, String purl, boolean active, boolean commitIndex) {
         final Project project = new Project();
         project.setName(name);
         project.setDescription(description);
@@ -308,6 +314,7 @@ public class QueryManager extends AlpineQueryManager {
             project.setParent(parent);
         }
         project.setPurl(purl);
+        project.setActive(active);
         final Project result = persist(project);
 
         final List<Tag> resolvedTags = resolveTags(tags);
@@ -326,15 +333,17 @@ public class QueryManager extends AlpineQueryManager {
      * @param version the project version
      * @param tags a List of Tags - these will be resolved if necessary
      * @param purl an optional Package URL
+     * @param active specified if the project is active
      * @param commitIndex specifies if the search index should be committed (an expensive operation)
      * @return the updated Project
      */
-    public Project updateProject(UUID uuid, String name, String description, String version, List<Tag> tags, String purl, boolean commitIndex) {
+    public Project updateProject(UUID uuid, String name, String description, String version, List<Tag> tags, String purl, boolean active, boolean commitIndex) {
         final Project project = getObjectByUuid(Project.class, uuid);
         project.setName(name);
         project.setDescription(description);
         project.setVersion(version);
         project.setPurl(purl);
+        project.setActive(active);
 
         final List<Tag> resolvedTags = resolveTags(tags);
         bind(project, resolvedTags);
@@ -355,6 +364,7 @@ public class QueryManager extends AlpineQueryManager {
         project.setName(source.getName());
         project.setDescription(source.getDescription());
         project.setVersion(newVersion);
+        project.setActive(source.isActive());
         if (project.getPurl() != null && newVersion != null) {
             try {
                 final PackageURL sourcePurl = new PackageURL(project.getPurl());
@@ -780,28 +790,6 @@ public class QueryManager extends AlpineQueryManager {
     }
 
     /**
-     * Creates new evidence for a Component.
-     * @param component the Component to create evidence for
-     * @param type the type of evidence
-     * @param confidenceScore the confidence score
-     * @param source the source of where the evidence was obtained from
-     * @param name the name of the evidence
-     * @param value the value of the evidence
-     * @return a new Evidence object
-     */
-    public Evidence createEvidence(Component component, String type, int confidenceScore,
-                                    String source, String name, String value) {
-        final Evidence evidence = new Evidence();
-        evidence.setComponent(component);
-        evidence.setType(type);
-        evidence.setConfidence(confidenceScore);
-        evidence.setSource(source);
-        evidence.setName(name);
-        evidence.setValue(value);
-        return persist(evidence);
-    }
-
-    /**
      * Returns a List of all License objects.
      * @return a List of all License objects
      */
@@ -960,9 +948,9 @@ public class QueryManager extends AlpineQueryManager {
             vulnerability.setCvssV3BaseScore(transientVulnerability.getCvssV3BaseScore());
             vulnerability.setCvssV3ImpactSubScore(transientVulnerability.getCvssV3ImpactSubScore());
             vulnerability.setCvssV3ExploitabilitySubScore(transientVulnerability.getCvssV3ExploitabilitySubScore());
-            vulnerability.setMatchedAllPreviousCPE(transientVulnerability.getMatchedAllPreviousCPE());
-            vulnerability.setMatchedCPE(transientVulnerability.getMatchedCPE());
-
+            if (transientVulnerability.getVulnerableSoftware() != null) {
+                vulnerability.setVulnerableSoftware(transientVulnerability.getVulnerableSoftware());
+            }
             final Vulnerability result = persist(vulnerability);
             Event.dispatch(new IndexEvent(IndexEvent.Action.UPDATE, pm.detachCopy(result)));
             commitSearchIndex(commitIndex, Vulnerability.class);
@@ -1073,6 +1061,134 @@ public class QueryManager extends AlpineQueryManager {
             }
         }
         return false;
+    }
+
+    /**
+     * Synchronize a Cpe, updating it if it needs updating, or creating it if it doesn't exist.
+     * @param cpe the Cpe object to synchronize
+     * @param commitIndex specifies if the search index should be committed (an expensive operation)
+     * @return a synchronize Cpe object
+     */
+    public Cpe synchronizeCpe(Cpe cpe, boolean commitIndex) {
+        Cpe result = getCpeBy23(cpe.getCpe23());
+        if (result == null) {
+            result = persist(cpe);
+            Event.dispatch(new IndexEvent(IndexEvent.Action.CREATE, pm.detachCopy(result)));
+            commitSearchIndex(commitIndex, Cpe.class);
+        }
+        return result;
+    }
+
+    /**
+     * Returns a CPE by it's CPE v2.3 string.
+     * @param cpe23 the CPE 2.3 string
+     * @return a CPE object, or null if not found
+     */
+    public Cpe getCpeBy23(String cpe23) {
+        final Query query = pm.newQuery(Cpe.class, "cpe23 == :cpe23");
+        return singleResult(query.execute(cpe23));
+    }
+
+    /**
+     * Returns a List of all CPE objects.
+     * @return a List of all CPE objects
+     */
+    @SuppressWarnings("unchecked")
+    public PaginatedResult getCpes() {
+        final Query query = pm.newQuery(Cpe.class);
+        if (orderBy == null) {
+            query.setOrdering("id asc");
+        }
+        if (filter != null) {
+            query.setFilter("vendor.toLowerCase().matches(:filter) || product.toLowerCase().matches(:filter)");
+            final String filterString = ".*" + filter.toLowerCase() + ".*";
+            return execute(query, filterString);
+        }
+        return execute(query);
+    }
+
+    /**
+     * Returns a List of all CPE objects that match the specified CPE (v2.2 or v2.3) uri.
+     * @return a List of matching CPE objects
+     */
+    @SuppressWarnings("unchecked")
+    public List<Cpe> getCpes(final String cpeString) {
+        final Query query = pm.newQuery(Cpe.class, "cpe23 == :cpeString || cpe22 == :cpeString");
+        return (List<Cpe>)query.execute(cpeString);
+    }
+
+    /**
+     * Returns a List of all CPE objects that match the specified vendor/product/version.
+     * @return a List of matching CPE objects
+     */
+    @SuppressWarnings("unchecked")
+    public List<Cpe> getCpes(final String part, final String vendor, final String product, final String version) {
+        final Query query = pm.newQuery(Cpe.class);
+        query.setFilter("part == :part && vendor == :vendor && product == :product && version == :version");
+        return (List<Cpe>)query.executeWithArray(part, vendor, product, version);
+    }
+
+    /**
+     * Returns a VulnerableSoftware by it's CPE v2.3 string.
+     * @param cpe23 the CPE 2.3 string
+     * @return a VulnerableSoftware object, or null if not found
+     */
+    public VulnerableSoftware getVulnerableSoftwareByCpe23(String cpe23,
+                                                           String versionEndExcluding, String versionEndIncluding,
+                                                           String versionStartExcluding, String versionStartIncluding) {
+        final Query query = pm.newQuery(VulnerableSoftware.class);
+        query.setFilter("cpe23 == :cpe23 && versionEndExcluding == :versionEndExcluding && versionEndIncluding == :versionEndIncluding && versionStartExcluding == :versionStartExcluding && versionStartIncluding == :versionStartIncluding");
+        return singleResult(query.executeWithArray(cpe23, versionEndExcluding, versionEndIncluding, versionStartExcluding, versionStartIncluding));
+    }
+
+    /**
+     * Returns a List of all VulnerableSoftware objects.
+     * @return a List of all VulnerableSoftware objects
+     */
+    @SuppressWarnings("unchecked")
+    public PaginatedResult getVulnerableSoftware() {
+        final Query query = pm.newQuery(VulnerableSoftware.class);
+        if (orderBy == null) {
+            query.setOrdering("id asc");
+        }
+        if (filter != null) {
+            query.setFilter("vendor.toLowerCase().matches(:filter) || product.toLowerCase().matches(:filter)");
+            final String filterString = ".*" + filter.toLowerCase() + ".*";
+            return execute(query, filterString);
+        }
+        return execute(query);
+    }
+
+    /**
+     * Returns a List of all VulnerableSoftware objects that match the specified CPE (v2.2 or v2.3) uri.
+     * @return a List of matching VulnerableSoftware objects
+     */
+    @SuppressWarnings("unchecked")
+    public List<VulnerableSoftware> getAllVulnerableSoftwareByCpe(final String cpeString) {
+        final Query query = pm.newQuery(VulnerableSoftware.class, "cpe23 == :cpeString || cpe22 == :cpeString");
+        return (List<VulnerableSoftware>)query.execute(cpeString);
+    }
+
+    /**
+     * Returns a List of all VulnerableSoftware objects that match the specified vendor/product/version.
+     * @return a List of matching VulnerableSoftware objects
+     */
+    @SuppressWarnings("unchecked")
+    public List<VulnerableSoftware> getAllVulnerableSoftware(final String part, final String vendor, final String product, final String version) {
+        final Query query = pm.newQuery(VulnerableSoftware.class);
+        query.setFilter("part == :part && vendor == :vendor && product == :product && version == :version");
+        return (List<VulnerableSoftware>)query.executeWithArray(part, vendor, product, version);
+    }
+
+    /**
+     * Returns a List of all VulnerableSoftware objects that match the specified vendor/product.
+     * @return a List of matching VulnerableSoftware objects
+     */
+    @SuppressWarnings("unchecked")
+    public List<VulnerableSoftware> getAllVulnerableSoftware(final String part, final String vendor, final String product) {
+        final Query query = pm.newQuery(VulnerableSoftware.class);
+        query.setFilter("part == :part && vendor == :vendor && product == :product");
+        return (List<VulnerableSoftware>)query.executeWithArray(part, vendor, product);
     }
 
     /**
@@ -2296,6 +2412,21 @@ public class QueryManager extends AlpineQueryManager {
             return persist(publisher);
         }
         return null;
+    }
+
+    /**
+     * Determines if a config property is enabled or not.
+     * @param configPropertyConstants the property to query
+     * @return true if enabled, false if not
+     */
+    public boolean isEnabled(final ConfigPropertyConstants configPropertyConstants) {
+        final ConfigProperty property = getConfigProperty(
+                configPropertyConstants.getGroupName(), configPropertyConstants.getPropertyName()
+        );
+        if (property != null && ConfigProperty.PropertyType.BOOLEAN == property.getPropertyType()) {
+            return BooleanUtil.valueOf(property.getPropertyValue());
+        }
+        return false;
     }
 
     /**
