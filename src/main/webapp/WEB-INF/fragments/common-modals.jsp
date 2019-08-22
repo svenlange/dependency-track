@@ -127,6 +127,10 @@
                             <input type="password" name="password" placeholder="Password..." class="form-control" id="password">
                         </div>
                         <button type="submit" class="btn btn-primary btn-block">Log In</button>
+                        <div>&nbsp;</div>
+                        <div>
+                            <button type="button" class="btn btn-primary btn-block">Sign in with GitLab</button>
+                        </div>
                     </form>
                 </div>
             </div>

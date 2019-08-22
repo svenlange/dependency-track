@@ -115,6 +115,7 @@
                     </div>
                     <div id="collapseAccessManagement" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingAccessManagement">
                         <div class="list-group">
+                            <a data-toggle="tab" class="list-group-item" href="#gitlabConfigTab">GitLab configuration</a>
                             <a data-toggle="tab" class="list-group-item" href="#ldapUsersTab">LDAP Users</a>
                             <a data-toggle="tab" class="list-group-item" href="#managedUsersTab">Managed Users</a>
                             <a data-toggle="tab" class="list-group-item" href="#teamsTab">Teams</a>
@@ -450,6 +451,18 @@
                                 </thead>
                             </table>
                         </div>
+
+
+
+                        <div class="tab-pane" id="gitlabConfigTab" data-admin-title="GitLab configuration">
+                            client_id = GITLAB_APPLICATION_ID
+                            client_secret = GITLAB_SECRET
+                            scopes = api
+                            auth_url = https://gitlab.com/oauth/authorize
+                            token_url = https://gitlab.com/oauth/token
+                            api_url = https://gitlab.com/api/v4
+                        </div>
+
                         <div class="tab-pane" id="ldapUsersTab" data-admin-title="LDAP Users">
                             <div id="ldapUsersToolbar">
                                 <div class="form-inline" role="form">
