@@ -129,7 +129,7 @@
                         <button type="submit" class="btn btn-primary btn-block">Log In</button>
                         <div>&nbsp;</div>
                         <div>
-                            <button type="button" class="btn btn-primary btn-block">Sign in with GitLab</button>
+                            <a class="btn btn-primary btn-block" href="http://dieter/oauth/authorize?scope=openid&response_type=code&client_id=92837368bad2ff52f459e435a3e7e5b12506e3299d61111b70844139d8ccd8bc&state=qwertz&redirect_uri=http://localhost:8877/dependency_track/login/gitlab/">Sign in with GitLab</a>
                         </div>
                     </form>
                 </div>
