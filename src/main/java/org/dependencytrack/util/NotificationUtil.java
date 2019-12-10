@@ -31,6 +31,7 @@ import org.dependencytrack.notification.NotificationConstants;
 import org.dependencytrack.notification.NotificationGroup;
 import org.dependencytrack.notification.NotificationScope;
 import org.dependencytrack.notification.vo.AnalysisDecisionChange;
+import org.dependencytrack.notification.vo.BomConsumedOrProcessed;
 import org.dependencytrack.notification.vo.NewVulnerabilityIdentified;
 import org.dependencytrack.notification.vo.NewVulnerableDependency;
 import org.dependencytrack.persistence.QueryManager;
@@ -286,6 +287,21 @@ public final class NotificationUtil {
                 projectsBuilder.add(toJson(project));
             }
             builder.add("affectedProjects", projectsBuilder.build());
+        }
+        return builder.build();
+    }
+
+    public static JsonObject toJson(final BomConsumedOrProcessed vo) {
+        final JsonObjectBuilder builder = Json.createObjectBuilder();
+        if (vo.getProject() != null) {
+            builder.add("project", toJson(vo.getProject()));
+        }
+        if (vo.getBom() != null) {
+            builder.add("bom", Json.createObjectBuilder()
+                    .add("content", vo.getBom())
+                    .add("format", vo.getFormat().getFormatShortName())
+                    .add("specVersion", vo.getSpecVersion()).build()
+            );
         }
         return builder.build();
     }

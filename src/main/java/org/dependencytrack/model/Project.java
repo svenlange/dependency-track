@@ -141,13 +141,29 @@ public class Project implements Serializable {
     @Column(name = "LAST_SCAN_IMPORTED")
     private Date lastScanImport;
 
-    /**N
+    /**
      * Convenience field which will contain the date of the last entry in the {@link Bom} table
      */
     @Persistent
     @Index(name = "PROJECT_LASTBOMIMPORT_IDX")
     @Column(name = "LAST_BOM_IMPORTED")
     private Date lastBomImport;
+
+    /**
+     * Convenience field which will contain the format of the last entry in the {@link Bom} table
+     */
+    @Persistent
+    @Index(name = "PROJECT_LASTBOMIMPORT_FORMAT_IDX")
+    @Column(name = "LAST_BOM_IMPORTED_FORMAT")
+    private String lastBomImportFormat;
+
+    /**
+     * Convenience field which stores the Inherited Risk Score (IRS) of the last metric in the {@link ProjectMetrics} table
+     */
+    @Persistent
+    @Index(name = "PROJECT_LAST_RISKSCORE_IDX")
+    @Column(name = "LAST_RISKSCORE", allowsNull = "true") // New column, must allow nulls on existing databases))
+    private Double lastInheritedRiskScore;
 
     @Persistent
     @Column(name = "ACTIVE")
@@ -249,6 +265,22 @@ public class Project implements Serializable {
 
     public void setLastBomImport(Date lastBomImport) {
         this.lastBomImport = lastBomImport;
+    }
+
+    public String getLastBomImportFormat() {
+        return lastBomImportFormat;
+    }
+
+    public void setLastBomImportFormat(String lastBomImportFormat) {
+        this.lastBomImportFormat = lastBomImportFormat;
+    }
+
+    public Double getLastInheritedRiskScore() {
+        return lastInheritedRiskScore;
+    }
+
+    public void setLastInheritedRiskScore(Double lastInheritedRiskScore) {
+        this.lastInheritedRiskScore = lastInheritedRiskScore;
     }
 
     public boolean isActive() {

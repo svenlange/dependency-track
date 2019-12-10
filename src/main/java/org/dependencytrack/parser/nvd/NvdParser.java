@@ -259,7 +259,7 @@ public final class NvdParser {
         return vsList;
     }
 
-    private synchronized VulnerableSoftware generateVulnerableSoftware(final QueryManager qm, final JsonObject cpeMatch,
+    private VulnerableSoftware generateVulnerableSoftware(final QueryManager qm, final JsonObject cpeMatch,
                                                                        final Vulnerability vulnerability) {
         final String cpe23Uri = cpeMatch.getString("cpe23Uri");
         final String versionEndExcluding = cpeMatch.getString("versionEndExcluding", null);
@@ -283,7 +283,7 @@ public final class NvdParser {
             //Event.dispatch(new IndexEvent(IndexEvent.Action.CREATE, qm.detach(VulnerableSoftware.class, vs.getId())));
             return vs;
         } catch (CpeParsingException | CpeEncodingException e) {
-            LOGGER.error("An error occurred while parsing: " + cpe23Uri, e);
+            LOGGER.warn("An error occurred while parsing: " + cpe23Uri + " - The CPE is invalid and will be discarded.");
         }
         return null;
     }

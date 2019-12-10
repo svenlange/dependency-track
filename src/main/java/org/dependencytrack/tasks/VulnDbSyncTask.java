@@ -24,27 +24,29 @@ import alpine.event.framework.LoggableSubscriber;
 import alpine.logging.Logger;
 import alpine.notification.Notification;
 import alpine.notification.NotificationLevel;
-import org.apache.commons.lang3.StringUtils;
 import org.dependencytrack.event.IndexEvent;
 import org.dependencytrack.event.VulnDbSyncEvent;
-import org.dependencytrack.model.Cwe;
 import org.dependencytrack.model.Vulnerability;
+import org.dependencytrack.model.VulnerableSoftware;
 import org.dependencytrack.notification.NotificationConstants;
 import org.dependencytrack.notification.NotificationGroup;
 import org.dependencytrack.notification.NotificationScope;
+import org.dependencytrack.parser.vulndb.ModelConverter;
 import org.dependencytrack.persistence.QueryManager;
-import us.springett.cvss.CvssV2;
-import us.springett.cvss.CvssV3;
-import us.springett.cvss.Score;
+import us.springett.parsers.cpe.Cpe;
+import us.springett.parsers.cpe.CpeParser;
+import us.springett.parsers.cpe.exceptions.CpeEncodingException;
+import us.springett.parsers.cpe.exceptions.CpeParsingException;
 import us.springett.vulndbdatamirror.parser.VulnDbParser;
-import us.springett.vulndbdatamirror.parser.model.CvssV2Metric;
-import us.springett.vulndbdatamirror.parser.model.CvssV3Metric;
+import us.springett.vulndbdatamirror.parser.model.CPE;
+import us.springett.vulndbdatamirror.parser.model.Product;
 import us.springett.vulndbdatamirror.parser.model.Results;
+import us.springett.vulndbdatamirror.parser.model.Vendor;
+import us.springett.vulndbdatamirror.parser.model.Version;
 import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -121,160 +123,75 @@ public class VulnDbSyncTask implements LoggableSubscriber {
             for (final Object o: results.getResults()) {
                 if (o instanceof us.springett.vulndbdatamirror.parser.model.Vulnerability) {
                     final us.springett.vulndbdatamirror.parser.model.Vulnerability vulnDbVuln = (us.springett.vulndbdatamirror.parser.model.Vulnerability)o;
-                    final org.dependencytrack.model.Vulnerability vulnerability = convert(qm, vulnDbVuln);
-                    qm.synchronizeVulnerability(vulnerability, false);
+                    final org.dependencytrack.model.Vulnerability vulnerability = ModelConverter.convert(qm, vulnDbVuln);
+                    final Vulnerability synchronizeVulnerability = qm.synchronizeVulnerability(vulnerability, false);
+                    final List<VulnerableSoftware> vsList = parseCpes(qm, synchronizeVulnerability, vulnDbVuln);
+                    synchronizeVulnerability.setVulnerableSoftware(vsList);
+                    qm.persist(synchronizeVulnerability);
                 }
             }
         }
     }
 
-    /**
-     * Helper method that converts an VulnDB vulnerability object to a Dependency-Track vulnerability object.
-     * @param vulnDbVuln the VulnDB vulnerability to convert
-     * @return a Dependency-Track Vulnerability object
-     */
-    private org.dependencytrack.model.Vulnerability convert(final QueryManager qm, final us.springett.vulndbdatamirror.parser.model.Vulnerability vulnDbVuln) {
-        final org.dependencytrack.model.Vulnerability vuln = new org.dependencytrack.model.Vulnerability();
-        vuln.setSource(org.dependencytrack.model.Vulnerability.Source.VULNDB);
-        vuln.setVulnId(sanitize(String.valueOf(vulnDbVuln.getId())));
-        vuln.setTitle(sanitize(vulnDbVuln.getTitle()));
-
-
-        /* Description */
-        final StringBuilder description = new StringBuilder();
-        if (vulnDbVuln.getDescription() != null) {
-            description.append(sanitize(vulnDbVuln.getDescription()));
-        }
-        if (vulnDbVuln.getTechnicalDescription() != null) {
-            description.append(" ").append(sanitize(vulnDbVuln.getTechnicalDescription()));
-        }
-        if (vulnDbVuln.getSolution() != null) {
-            description.append(" ").append(sanitize(vulnDbVuln.getSolution()));
-        }
-        if (vulnDbVuln.getManualNotes() != null) {
-            description.append(" ").append(sanitize(vulnDbVuln.getManualNotes()));
-        }
-        vuln.setDescription(description.toString());
-
-
-        /* Dates */
-        if (StringUtils.isNotBlank(vulnDbVuln.getDisclosureDate())) {
-            final OffsetDateTime odt = OffsetDateTime.parse(vulnDbVuln.getDisclosureDate());
-            vuln.setCreated(Date.from(odt.toInstant()));
-        }
-        if (StringUtils.isNotBlank(vulnDbVuln.getDisclosureDate())) {
-            final OffsetDateTime odt = OffsetDateTime.parse(vulnDbVuln.getDisclosureDate());
-            vuln.setPublished(Date.from(odt.toInstant()));
-        }
-        /*
-        if (StringUtils.isNotBlank(vulnDbVuln.getUpdatedAt())) {
-            final OffsetDateTime odt = OffsetDateTime.parse(vulnDbVuln.getUpdatedAt());
-            vuln.setUpdated(Date.from(odt.toInstant()));
-        }
-        */
-
-
-        /* References */
-        final StringBuilder references = new StringBuilder();
-        for (final us.springett.vulndbdatamirror.parser.model.ExternalReference reference : vulnDbVuln.getExtReferences()) {
-            final String sType = sanitize(reference.getType());
-            final String sValue = sanitize(reference.getValue());
-            // Convert reference to Markdown format
-            if (sValue != null && sValue.startsWith("http")) {
-                references.append("* [").append(sValue).append("](").append(sValue).append(")\n");
-            } else {
-                references.append("* ").append(sValue).append(" (").append(sType).append(")\n");
-            }
-        }
-        vuln.setReferences(references.toString());
-
-
-        /* Credits */
-        final StringBuilder credits = new StringBuilder();
-        for (final us.springett.vulndbdatamirror.parser.model.Author author : vulnDbVuln.getAuthors()) {
-            final String name = sanitize(author.getName());
-            final String company = sanitize(author.getCompany());
-            if (name != null && company != null) {
-                credits.append(name).append(" (").append(company).append(")").append(", ");
-            } else {
-                if (name != null) {
-                    credits.append(name).append(", ");
-                }
-                if (company != null) {
-                    credits.append(company).append(", ");
+    public static List<VulnerableSoftware> parseCpes(final QueryManager qm, final Vulnerability vulnerability,
+                                                     final us.springett.vulndbdatamirror.parser.model.Vulnerability vulnDbVuln) {
+        // cpe:2.3:a:belavier_commerce:abantecart:1.2.8:*:*:*:*:*:*:*
+        final List<VulnerableSoftware> vsList = new ArrayList<>();
+        if (vulnDbVuln.getVendors() != null) {
+            for (Vendor vendor: vulnDbVuln.getVendors()) {
+                if (vendor.getProducts() != null) {
+                    for (Product product: vendor.getProducts()) {
+                        if (product.getVersions() != null) {
+                            for (Version version: product.getVersions()) {
+                                if (version != null) {
+                                    if (version.isAffected()) {
+                                        if (version.getCpes() != null) {
+                                            for (CPE cpeObject : version.getCpes()) {
+                                                try {
+                                                    final Cpe cpe = CpeParser.parse(cpeObject.getCpe(), true);
+                                                    final VulnerableSoftware vs = generateVulnerableSoftware(qm, cpe, vulnerability);
+                                                    if (vs != null) {
+                                                        vsList.add(vs);
+                                                    }
+                                                } catch (CpeParsingException e) {
+                                                    // Normally, this would be logged to error, however, VulnDB contains a lot of invalid CPEs
+                                                    LOGGER.debug("An error occurred parsing " + cpeObject.getCpe(), e);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-        final String creditsText = credits.toString();
-        if (creditsText.endsWith(", ")) {
-            vuln.setCredits(StringUtils.trimToNull(creditsText.substring(0, creditsText.length() - 2)));
-        }
-
-        CvssV2 cvssV2;
-        for (final CvssV2Metric metric : vulnDbVuln.getCvssV2Metrics()) {
-            cvssV2 = metric.toNormalizedMetric();
-            final Score score = cvssV2.calculateScore();
-            vuln.setCvssV2Vector(cvssV2.getVector());
-            vuln.setCvssV2BaseScore(BigDecimal.valueOf(score.getBaseScore()));
-            vuln.setCvssV2ImpactSubScore(BigDecimal.valueOf(score.getImpactSubScore()));
-            vuln.setCvssV2ExploitabilitySubScore(BigDecimal.valueOf(score.getExploitabilitySubScore()));
-            if (metric.getCveId() != null) {
-                break; // Always prefer use of the NVD scoring, if available
-            }
-        }
-
-        CvssV3 cvssV3;
-        for (final CvssV3Metric metric : vulnDbVuln.getCvssV3Metrics()) {
-            cvssV3 = metric.toNormalizedMetric();
-            final Score score = cvssV3.calculateScore();
-            vuln.setCvssV3Vector(cvssV3.getVector());
-            vuln.setCvssV3BaseScore(BigDecimal.valueOf(score.getBaseScore()));
-            vuln.setCvssV3ImpactSubScore(BigDecimal.valueOf(score.getImpactSubScore()));
-            vuln.setCvssV3ExploitabilitySubScore(BigDecimal.valueOf(score.getExploitabilitySubScore()));
-            if (metric.getCveId() != null) {
-                break; // Always prefer use of the NVD scoring, if available
-            }
-        }
-
-        if (vulnDbVuln.getNvdAdditionalInfo() != null) {
-            final String cweString = vulnDbVuln.getNvdAdditionalInfo().getCweId();
-            if (cweString != null && cweString.startsWith("CWE-")) {
-                try {
-                    final int cweId = Integer.parseInt(cweString.substring(4, cweString.length()).trim());
-                    final Cwe cwe = qm.getCweById(cweId);
-                    vuln.setCwe(cwe);
-                } catch (NumberFormatException e) {
-                    LOGGER.error("Error parsing CWE ID: " + cweString, e);
-                }
-            }
-        }
-
-        return vuln;
+        return vsList;
     }
 
-    /**
-     * VulnDB data is known to have non-printable characters, unicode characters typically used for formatting,
-     * and other characters that we do not want to import into the data model. This method will remove those
-     * characters.
-     *
-     * @param input the String to sanitize
-     * @return a sanitized String free of unwanted characters
-     */
-    private String sanitize(final String input) {
-        if (input == null) {
-            return null;
+    private static VulnerableSoftware generateVulnerableSoftware(final QueryManager qm, final Cpe cpe,
+                                                                 final Vulnerability vulnerability) {
+        VulnerableSoftware vs = qm.getVulnerableSoftwareByCpe23(cpe.toCpe23FS(), null, null, null, null);
+        if (vs != null) {
+            return vs;
         }
-        return StringUtils.trimToNull(input
-                .replaceAll("\\u00AD", "") // (Soft Hyphen)
-                .replaceAll("\\u200B", "") // (Zero Width Space)
-                .replaceAll("\\u200E", "") // (Left-to-Right Mark)
-                .replaceAll("\\u200F", "") // (Right-to-Left Mark)
-                .replaceAll("\\u00A0", "") // (Non-Breaking Space)
-                .replaceAll("\\uFEFF", "") // (Zero Width No-Break Space)
-                .replaceAll("\\u007F", "") // (DELETE Control Character)
-                .replaceAll("[\\u0000-\\u001F]", "") // (Control Characters)
-                .replaceAll("[\\u0080-\\u009F]", "") // (C1 Control Characters)
-        );
+        try {
+            vs = org.dependencytrack.parser.nvd.ModelConverter.convertCpe23UriToVulnerableSoftware(cpe.toCpe23FS());
+            vs.setVulnerable(true);
+            vs.addVulnerability(vulnerability);
+            // VulnDB does not provide version ranges for the CPEs that exist inside Vendor->Product->Version->CPE
+            vs.setVersionEndExcluding(null);
+            vs.setVersionEndIncluding(null);
+            vs.setVersionStartExcluding(null);
+            vs.setVersionStartIncluding(null);
+            vs = qm.persist(vs);
+            //Event.dispatch(new IndexEvent(IndexEvent.Action.CREATE, qm.detach(VulnerableSoftware.class, vs.getId())));
+            return vs;
+        } catch (CpeParsingException | CpeEncodingException e) {
+            LOGGER.warn("An error occurred while parsing: " + cpe.toCpe23FS() + " - The CPE is invalid and will be discarded.");
+        }
+        return null;
     }
 
 }

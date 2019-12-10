@@ -48,6 +48,27 @@ public class Bom implements Serializable {
 
     private static final long serialVersionUID = -4378439983100141050L;
 
+    public enum Format {
+        CYCLONEDX("CycloneDX", "CycloneDX BOM Specification"),
+        SPDX("SPDX", "Software Package Data Exchange");
+
+        private final String formatShortName;
+        private final String formatLongName;
+
+        Format(final String formatShortName, final String formatLongName) {
+            this.formatShortName = formatShortName;
+            this.formatLongName = formatLongName;
+        }
+
+        public String getFormatShortName() {
+            return formatShortName;
+        }
+
+        public String getFormatLongName() {
+            return formatLongName;
+        }
+    }
+
     @PrimaryKey
     @Persistent(valueStrategy = IdGeneratorStrategy.NATIVE)
     @JsonIgnore
@@ -57,6 +78,14 @@ public class Bom implements Serializable {
     @Column(name = "IMPORTED", allowsNull = "false")
     @NotNull
     private Date imported;
+
+    @Persistent
+    @Column(name = "BOM_FORMAT")
+    private String bomFormat;
+
+    @Persistent
+    @Column(name = "SPEC_VERSION")
+    private String specVersion;
 
     @Persistent(defaultFetchGroup = "true")
     @Column(name = "PROJECT_ID", allowsNull = "false")
@@ -89,6 +118,22 @@ public class Bom implements Serializable {
 
     public void setImported(Date imported) {
         this.imported = imported;
+    }
+
+    public String getBomFormat() {
+        return bomFormat;
+    }
+
+    public void setBomFormat(Format format) {
+        this.bomFormat = format.formatShortName;
+    }
+
+    public String getSpecVersion() {
+        return specVersion;
+    }
+
+    public void setSpecVersion(String specVersion) {
+        this.specVersion = specVersion;
     }
 
     public Project getProject() {

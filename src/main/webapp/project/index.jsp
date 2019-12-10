@@ -156,7 +156,7 @@
                                 <div class="form-inline" role="form">
                                     <button id="addDependencyButton" class="btn btn-default require-portfolio-management" data-toggle="modal" data-target="#modalAddDependency"><span class="fa fa-plus"></span> Add Dependency</button>
                                     <button id="removeDependencyButton" class="btn btn-default require-portfolio-management"><span class="fa fa-minus"></span> Remove Dependency</button>
-                                    <button id="uploadBomDisplayModalButton" class="btn btn-default require-portfolio-management" data-toggle="modal" data-target="#modalUploadBom"><span class="fa fa-upload"></span> Upload BoM</button>
+                                    <button id="uploadBomDisplayModalButton" class="btn btn-default require-portfolio-management" data-toggle="modal" data-target="#modalUploadBom"><span class="fa fa-upload"></span> Upload BOM</button>
                                 </div>
                             </div>
                             <table id="dependenciesTable" class="table table-hover detail-table" data-toggle="table"
@@ -173,6 +173,7 @@
                                     <th data-align="left" data-field="latestVersion" data-visible="false">Latest Version</th>
                                     <th data-align="left" data-field="component.group" data-sort-name="component.group" data-sortable="true">Group</th>
                                     <th data-align="left" data-field="component.license">License</th>
+                                    <th data-align="left" data-field="component.lastInheritedRiskScore" data-sortable="true" class="tight">Risk Score</th>
                                     <th data-align="left" data-field="vulnerabilities">Vulnerabilities</th>
                                 </tr>
                                 </thead>
@@ -358,7 +359,7 @@
         <div class="modal-dialog modal-md" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <span class="modal-title">Upload BoM</span>
+                    <span class="modal-title">Upload BOM</span>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -366,7 +367,7 @@
 			                <span class="input-group-btn">
         		                <button class="btn btn-default btn-choose" type="button">Choose</button>
     		                </span>
-                            <input type="text" class="form-control" placeholder="Choose a CycloneDX or SPDX BoM..."/>
+                            <input type="text" class="form-control" placeholder="Choose a CycloneDX or SPDX BOM..."/>
                             <span class="input-group-btn">
        			                <button class="btn btn-warning btn-reset" type="button">Reset</button>
     		                </span>

@@ -6,10 +6,18 @@ order: 1
 ---
 
 Deploying with Docker is the easiest and fastest method of getting started. No prerequisites are required
-other than an modern version of Docker. 
+other than a modern version of Docker.
 
 > The 'latest' tag in Docker Hub will always refer to the latest stable GA release. Consult the GitHub repo
 > for instructions on how to run untested snapshot releases.
+
+### Container Requirements
+
+| Minimum | Recommended |
+|:---------|:--------|
+| 4.5GB RAM | 16GB RAM |
+| 2 CPU cores | 4 CPU cores |
+
 
 ### Quickstart (Manual Execution)
 
@@ -20,8 +28,8 @@ docker pull owasp/dependency-track
 # Creates a dedicated volume where data can be stored outside the container
 docker volume create --name dependency-track
 
-# Run the container
-docker run -d -p 8080:8080 --name dependency-track -v dependency-track:/data owasp/dependency-track
+# Run the container with 8GB RAM on port 8080
+docker run -d -m 8192m -p 8080:8080 --name dependency-track -v dependency-track:/data owasp/dependency-track
 ```
 
 ### Docker Compose (Automated / Orchestration)
