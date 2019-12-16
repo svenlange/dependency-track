@@ -24,7 +24,7 @@
     <parent>
         <groupId>us.springett</groupId>
         <artifactId>alpine-parent</artifactId>
-        <version>1.6.3-SNAPSHOT</version>
+        <version>1.6.3</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -84,7 +84,7 @@
         <lib.alpine.version>${project.parent.version}</lib.alpine.version>
         <lib.cpe-parser.version>2.0.1</lib.cpe-parser.version>
         <lib.cvss-calculator.version>1.2.1</lib.cvss-calculator.version>
-        <lib.cyclonedx-java.version>2.1.1</lib.cyclonedx-java.version>
+        <lib.cyclonedx-java.version>2.5.1</lib.cyclonedx-java.version>
         <lib.jaxb.runtime.version>2.3.2</lib.jaxb.runtime.version>
         <lib.lucene.version>7.7.2</lib.lucene.version>
         <lib.packageurl.version>1.1.1</lib.packageurl.version>
@@ -239,19 +239,19 @@
         <dependency>
             <groupId>com.fasterxml.woodstox</groupId>
             <artifactId>woodstox-core</artifactId>
-            <version>6.0.1</version>
+            <version>6.0.3</version>
         </dependency>
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.mock-server</groupId>
             <artifactId>mockserver-netty</artifactId>
-            <version>5.6.1</version>
+            <version>5.8.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>3.1.0</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
